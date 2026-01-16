@@ -14,6 +14,20 @@ import {
   getStoredTheme,
   type Theme,
 } from "@/lib/theme";
+import { setTranslationOverrides } from "@/lib/i18n";
+import { DEFAULT_LANGUAGE, type Language } from "@/lib/i18n/types";
+
+const LANGUAGE_STORAGE_KEY = "deeptutor-language";
+type TranslationOverrides = Partial<Record<Language, Record<string, string>>>;
+const getStoredLanguage = (): Language | null => {
+  if (typeof window === "undefined") return null;
+  const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+  const candidate = stored === "zh" ? "zh-CN" : stored;
+  if (candidate && ["en", "zh-CN", "zh-TW", "zh-HK"].includes(candidate)) {
+    return candidate as Language;
+  }
+  return null;
+};
 
 // --- Types ---
 interface LogEntry {
@@ -281,7 +295,8 @@ interface GlobalContextType {
   newChatSession: () => void;
 
   // UI Settings
-  uiSettings: { theme: "light" | "dark"; language: "en" | "zh" };
+  uiSettings: { theme: "light" | "dark"; language: Language };
+  setLanguage: (language: Language) => void;
   refreshSettings: () => Promise<void>;
 
   // Sidebar
@@ -294,14 +309,39 @@ interface GlobalContextType {
 
 const GlobalContext = createContext<GlobalContextType | undefined>(undefined);
 
-export function GlobalProvider({ children }: { children: React.ReactNode }) {
+export function GlobalProvider({
+  children,
+  initialLanguage,
+  i18nOverrides,
+}: {
+  children: React.ReactNode;
+  initialLanguage?: Language;
+  i18nOverrides?: TranslationOverrides;
+}) {
+  const overridesAppliedRef = useRef(false);
+  if (!overridesAppliedRef.current && i18nOverrides) {
+    setTranslationOverrides(i18nOverrides);
+    overridesAppliedRef.current = true;
+  }
   // --- UI Settings Logic ---
   const [uiSettings, setUiSettings] = useState<{
     theme: "light" | "dark";
-    language: "en" | "zh";
-  }>({ theme: "light", language: "en" });
+    language: Language;
+  }>({ theme: "light", language: initialLanguage || DEFAULT_LANGUAGE });
 
   const [isInitialized, setIsInitialized] = useState(false);
+
+  const setLanguage = (language: Language) => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+        document.cookie = `${LANGUAGE_STORAGE_KEY}=${language}; path=/; max-age=31536000; samesite=lax`;
+      } catch {
+        // Ignore storage errors (e.g., private mode)
+      }
+    }
+    setUiSettings((prev) => ({ ...prev, language }));
+  };
 
   const refreshSettings = async () => {
     try {
@@ -312,10 +352,25 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
           // localStorage takes priority over backend
           const storedTheme = getStoredTheme();
           const themeToUse = storedTheme || data.ui.theme;
+          const storedLanguage = getStoredLanguage();
+
+          // Backward compatibility: map legacy "zh" to "zh-CN"
+          let normalizedLanguage: Language = data.ui.language;
+          if (data.ui.language === "zh") {
+            normalizedLanguage = "zh-CN";
+          } else if (
+            !["en", "zh-CN", "zh-TW", "zh-HK"].includes(data.ui.language)
+          ) {
+            // Fallback to English for unknown languages
+            normalizedLanguage = "en";
+          }
+
+          const preferredLanguage =
+            storedLanguage || initialLanguage || normalizedLanguage;
 
           setUiSettings({
             theme: themeToUse,
-            language: data.ui.language,
+            language: preferredLanguage,
           });
           // Apply and persist theme
           setTheme(themeToUse);
@@ -326,6 +381,14 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
       const stored = getStoredTheme();
       if (stored) {
         setUiSettings((prev) => ({ ...prev, theme: stored }));
+      }
+
+      const storedLanguage = getStoredLanguage();
+      if (storedLanguage || initialLanguage) {
+        setUiSettings((prev) => ({
+          ...prev,
+          language: storedLanguage || initialLanguage || prev.language,
+        }));
       }
     }
   };
@@ -341,6 +404,22 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
       refreshSettings();
     }
   }, [isInitialized]);
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = uiSettings.language;
+      document.documentElement.dataset.lang = uiSettings.language;
+      try {
+        const storedLanguage = getStoredLanguage();
+        if (!storedLanguage || storedLanguage === uiSettings.language) {
+          localStorage.setItem(LANGUAGE_STORAGE_KEY, uiSettings.language);
+          document.cookie = `${LANGUAGE_STORAGE_KEY}=${uiSettings.language}; path=/; max-age=31536000; samesite=lax`;
+        }
+      } catch {
+        // Ignore storage errors (e.g., private mode)
+      }
+    }
+  }, [uiSettings.language]);
 
   // --- Sidebar State ---
   const SIDEBAR_MIN_WIDTH = 64;
@@ -1691,6 +1770,7 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
         loadChatSession,
         newChatSession,
         uiSettings,
+        setLanguage,
         refreshSettings,
         sidebarWidth,
         setSidebarWidth,
