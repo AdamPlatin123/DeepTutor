@@ -43,6 +43,11 @@ MANIFEST
 # Virtual Environments
 .env
 *.env
+.env.local
+web/.env.local
+.env.*
+!.env.example
+!.env.example_*
 !.env.example
 env/
 venv/
@@ -86,6 +91,45 @@ cache/
 
 # Log files
 *.log
+
+# Local developer metadata and logs
+.claude/
+.zcf/
+install_log.txt
+npm_install_log.txt
+
+# Local frontend test artifacts
+.playwright-mcp/
+playwright-report/
+test-results/
+screenshots/
+
+# Local build caches
+.turbo/
+.vercel/
+
+# Local environment variants (keep examples tracked)
+.env.*.local
+.env.*.secret
+
+# Tool generated docs
+**/CLAUDE.md
+
+# Local credential/config files
+.npmrc
+.pypirc
+.condarc
+.netrc
+
+# Local keys/certs
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local tool version files
+.python-version
+.tool-versions
 
 # ============================================
 # IDE and Editors
