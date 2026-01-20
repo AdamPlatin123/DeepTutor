@@ -58,6 +58,9 @@ export default function ChatSessionDetail({
   const { uiSettings } = useGlobal();
   const t = (key: string) => getTranslation(uiSettings.language, key);
 
+  const isChineseLocale = () => uiSettings.language.startsWith("zh");
+  const getLocaleString = () => (isChineseLocale() ? "zh-CN" : "en-US");
+
   const [session, setSession] = useState<ChatSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,7 +136,7 @@ export default function ChatSessionDetail({
                 <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
                   <Clock className="w-3 h-3" />
                   {new Date(session.created_at * 1000).toLocaleString(
-                    uiSettings.language === "zh" ? "zh-CN" : "en-US",
+                    getLocaleString(),
                   )}
                   <span className="mx-1">•</span>
                   {session.messages.length} {t("messages")}
@@ -258,7 +261,7 @@ export default function ChatSessionDetail({
                         }`}
                       >
                         {new Date(msg.timestamp * 1000).toLocaleTimeString(
-                          uiSettings.language === "zh" ? "zh-CN" : "en-US",
+                          getLocaleString(),
                           { hour: "2-digit", minute: "2-digit" },
                         )}
                       </p>

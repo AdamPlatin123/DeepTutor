@@ -75,6 +75,9 @@ export default function HistoryPage() {
   const t = (key: string) => getTranslation(uiSettings.language, key);
   const router = useRouter();
 
+  const isChineseLocale = () => uiSettings.language.startsWith("zh");
+  const getLocaleString = () => (isChineseLocale() ? "zh-CN" : "en-US");
+
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -166,17 +169,11 @@ export default function HistoryPage() {
       } else if (date.toDateString() === yesterday.toDateString()) {
         dateKey = "Yesterday";
       } else {
-        dateKey = date.toLocaleDateString(
-          uiSettings.language === "zh" ? "zh-CN" : "en-US",
-          {
-            month: "long",
-            day: "numeric",
-            year:
-              date.getFullYear() !== today.getFullYear()
-                ? "numeric"
-                : undefined,
-          },
-        );
+        dateKey = date.toLocaleDateString(getLocaleString(), {
+          month: "long",
+          day: "numeric",
+          year: date.getFullYear() !== today.getFullYear() ? "numeric" : undefined,
+        });
       }
 
       if (!groups[dateKey]) {
@@ -321,12 +318,10 @@ export default function HistoryPage() {
                                 <Clock className="w-3 h-3" />
                                 {new Date(
                                   entry.timestamp * 1000,
-                                ).toLocaleTimeString(
-                                  uiSettings.language === "zh"
-                                    ? "zh-CN"
-                                    : "en-US",
-                                  { hour: "2-digit", minute: "2-digit" },
-                                )}
+                                ).toLocaleTimeString(getLocaleString(), {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
                               </span>
                             </div>
                             <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 truncate pr-4">
@@ -396,11 +391,7 @@ export default function HistoryPage() {
                               <Clock className="w-3 h-3" />
                               {new Date(
                                 session.updated_at * 1000,
-                              ).toLocaleDateString(
-                                uiSettings.language === "zh"
-                                  ? "zh-CN"
-                                  : "en-US",
-                              )}
+                              ).toLocaleDateString(getLocaleString())}
                             </span>
                           </div>
                           <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 truncate pr-4">
