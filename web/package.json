@@ -13,6 +13,7 @@
     "cytoscape": "^3.33.1",
     "framer-motion": "^12.24.0",
     "html2canvas": "^1.4.1",
+    "js-yaml": "^4.1.1",
     "jspdf": "^4.0.0",
     "lucide-react": "^0.562.0",
     "mermaid": "^11.12.2",
@@ -24,9 +25,11 @@
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.0",
     "remark-math": "^6.0.0",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "yaml": "^2.8.2"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^25",
     "@types/react": "^19",
     "@types/react-dom": "^19",

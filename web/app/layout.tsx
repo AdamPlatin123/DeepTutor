@@ -8,7 +8,7 @@ import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import { GlobalProvider } from "@/context/GlobalContext";
 import ThemeScript from "@/components/ThemeScript";
-import { setTranslationOverrides, translations } from "@/lib/i18n";
+import { setTranslationOverrides } from "@/lib/i18n";
 import {
   DEFAULT_LANGUAGE,
   isValidLanguage,
@@ -27,25 +27,6 @@ export const metadata: Metadata = {
   description: "Multi-Agent Teaching & Research Copilot",
 };
 
-const BASE_TRANSLATION_KEYS = new Set(Object.keys(translations.en));
-const SPECIAL_KEY_MAP: Record<string, string> = {
-  rag: "RAG",
-  llm: "LLM",
-  tts: "TTS",
-  kb: "KB",
-  ideagen: "IdeaGen",
-  co_writer: "Co-Writer",
-};
-
-const normalizeKeySegment = (segment: string): string => {
-  const special = SPECIAL_KEY_MAP[segment];
-  if (special) return special;
-  const parts = segment.split(/[_-]+/).filter(Boolean);
-  return parts
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-};
-
 const resolveLocalePath = (filename: string): string => {
   const candidates = [
     path.join(process.cwd(), "lib/i18n/locales", filename),
@@ -57,34 +38,17 @@ const resolveLocalePath = (filename: string): string => {
   return candidates[0];
 };
 
-const loadYamlRootMap = (filename: string): Record<string, string> => {
+const loadYamlFlatMap = (filename: string): Record<string, string> => {
   try {
     const filePath = resolveLocalePath(filename);
     const raw = fs.readFileSync(filePath, "utf8");
     const parsed = YAML.parse(raw) as Record<string, unknown>;
     const result: Record<string, string> = {};
-    const addEntry = (key: string, value: string) => {
-      if (!(key in result)) {
-        result[key] = value;
-      }
-    };
     const visit = (node: unknown, pathSegments: string[]) => {
       if (typeof node === "string") {
-        const rawKey = pathSegments[pathSegments.length - 1] || "";
-        const isTopLevel = pathSegments.length === 1;
-        let key: string | null = null;
-        if (isTopLevel) {
-          key = rawKey;
-        } else if (BASE_TRANSLATION_KEYS.has(rawKey)) {
-          key = rawKey;
-        } else {
-          const normalized = normalizeKeySegment(rawKey);
-          if (BASE_TRANSLATION_KEYS.has(normalized)) {
-            key = normalized;
-          }
-        }
-        if (key) {
-          addEntry(key, node);
+        const key = pathSegments.join(".");
+        if (!(key in result)) {
+          result[key] = node;
         }
         return;
       }
@@ -95,13 +59,37 @@ const loadYamlRootMap = (filename: string): Record<string, string> => {
         visit(childValue, [...pathSegments, childKey]);
       }
     };
-    for (const [key, value] of Object.entries(parsed)) {
-      visit(value, [key]);
-    }
+    visit(parsed, []);
     return result;
   } catch {
     return {};
   }
+};
+
+const buildOverridesFromYaml = () => {
+  const enMap = loadYamlFlatMap("en.yaml");
+  const zhCNMap = loadYamlFlatMap("zh-CN.yaml");
+  const zhTWMap = loadYamlFlatMap("zh-TW.yaml");
+  const zhHKMap = loadYamlFlatMap("zh-HK.yaml");
+
+  const buildLocaleOverrides = (targetMap: Record<string, string>) => {
+    const overrides: Record<string, string> = {};
+    for (const [pathKey, enValue] of Object.entries(enMap)) {
+      const targetValue = targetMap[pathKey];
+      if (typeof enValue === "string" && typeof targetValue === "string") {
+        if (!(enValue in overrides)) {
+          overrides[enValue] = targetValue;
+        }
+      }
+    }
+    return overrides;
+  };
+
+  return {
+    "zh-CN": buildLocaleOverrides(zhCNMap),
+    "zh-TW": buildLocaleOverrides(zhTWMap),
+    "zh-HK": buildLocaleOverrides(zhHKMap),
+  };
 };
 
 export default async function RootLayout({
@@ -109,10 +97,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const i18nOverrides = {
-    "zh-TW": loadYamlRootMap("zh-TW.yaml"),
-    "zh-HK": loadYamlRootMap("zh-HK.yaml"),
-  };
+  const i18nOverrides = buildOverridesFromYaml();
   setTranslationOverrides(i18nOverrides);
 
   const cookieStore = await cookies();
